@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysqlDB
+spec:
+  selector:
+    matchLabels:
+      app: mysqlDB
+  template:
+    metadata:
+      labels:
+        app: mysqlDB
+    spec:
+      containers:
+      - name: mysqlDB
+        image: mysql:5.7
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+          - name: mysql
+            containerPort: 3306
+        volumeMounts:
+        - name: mysqlflask-persistent-storage
+          mountPath: /var/lib/mysql
+        volumes:
+        - name: mysqlflask-persistent-storage
+          persistentVolumeClaim:
+            clainName: mysqlflask-pv-clain
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysqlflask-pv-volue
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 500Mi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: slow
+  hostPath:
+    path: /mnt/data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysqlflask-pv-clain
+spec:
+  resources:
+    requests:
+      storage: 500Mi
+  accessModes:
+    - ReadWriteOnce
