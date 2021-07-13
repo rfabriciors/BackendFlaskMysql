@@ -12,7 +12,7 @@ app.config['MYSQL_HOST'] = os.getenv("MYSQL_SERVICE_HOST")
 app.config['MYSQL_USER'] = 'flaskuser'
 app.config['MYSQL_PASSWORD'] = os.getenv("db_flask_password")
 app.config['MYSQL_DB'] = os.getenv("db_name")
-
+app.config['AUTH_PLUGIN'] = 'mysql_native_password'
 MySQL = MySQL(app)
 
 @app.route("/api", methods=["GET"])

@@ -17,11 +17,10 @@ spec:
     spec:
       containers:
       - name: mysql
-        image: mysql
-        # imagePullPolicy: Never
+        image: mysql:5.7.34
         resources:
          limits:
-            memory: "512Mi"
+            memory: "2048Mi"
             cpu: "500m"
         env:
         - name: MYSQL_ROOT_PASSWORD
@@ -54,4 +53,4 @@ spec:
     name: mysql
   selector:
     app: db
-  type: LoadBalancer
+  type: NodePort
