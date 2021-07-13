@@ -2,16 +2,16 @@ import flask
 from flask import request, json, jsonify
 import requests
 import flask_mysqldb
+import os
 from flask_mysqldb import MySQL
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
-#app.config['MYSQL_HOST'] = 'host.docker.internal'
-app.config['MYSQL_HOST'] = 'mysqlcontainer'
+app.config['MYSQL_HOST'] = os.getenv("MYSQL_SERVICE_HOST")
 app.config['MYSQL_USER'] = 'flaskuser'
-app.config['MYSQL_PASSWORD'] = 'flaskpass'
-app.config['MYSQL_DB'] = 'flaskdocker'
+app.config['MYSQL_PASSWORD'] = os.getenv("db_flask_password")
+app.config['MYSQL_DB'] = os.getenv("db_name")
 
 MySQL = MySQL(app)
 

@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: flaskapi
+  name: flaskapi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flaskapi
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: flaskapi
+    spec:
+      containers:
+      - image: rfabricio/flaskapi:v1.0
+        name: flaskapi
+        ports:
+        - containerPort: 5000
+        resources: {}
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flaskapi
+spec:
+  selector:
+    app: flaskapi
+  ports:
+  - port: 5000
+    targetPort: 5000
+  type: LoadBalancer

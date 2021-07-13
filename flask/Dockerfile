@@ -1,7 +1,10 @@
 FROM python:3
-RUN apt-get update -y && \
-    apt-get install -y python-pip python-dev && \
-    apt-get autoclean &&\
+RUN apt-get clean && \
+    apt-get update -y && \
+    apt-get install -y nginx \
+    python3-dev \
+    build-essential && \
+    apt-get autoclean && \
     apt-get clean
 WORKDIR /app
 RUN pip install Flask requests flask_mysqldb
