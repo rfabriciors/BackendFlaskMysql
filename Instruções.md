@@ -72,65 +72,69 @@ Baseado em:
 2. Fazendo o Deploy do MySQL
 
     Com os segredos e persistent volume no lugar, podemos iniciar a construção da nossa aplicação. Primeiro iremos fazer o deploy do MySQL server. Fazer o pull da mais nova imagem do mysql (docker pull mysql) e criar o arquivo mysql-deployment.yaml. Algumas coisas devem ser especificadas.
+
         1. Haverá apenas uma réplica do pod; (spec.replicas: 1)
         2. O deploymente irá gerenciar todos os pods com a label 'db' (spec.selector.matchLabels.app: db)
         3. O campo template e todos os sub-campos especificarão características do pod. Ele irá executar uma imagem mysql, com o nome mysql e obterá o campo db_root_password através do segredo criado anteriormente em flaskapi-secrets e irá através dessa informação configurar a variável ambiente MYSQL_ROOT_PASSWORD. Além disso será especificada a porta que será exposta do pod bem como o caminho onde deverá ser montado o volume persistente (spec.selector.template.spec.containers.volumeMounts.mountPath: /var/lib/mysql).
-        Em seguida será especificado um serviço chamado mysql do tipo LoadBalancer que será usado para acessarmos o banco através desse serviço.
+        Em seguida será especificado um serviço chamado mysql do tipo NodePort que será usado para acessarmos o banco através desse serviço.
+        A versão do banco não deve ser a 8 pois terá problemas de autenticação por conta da criptografia.
 
-            ---
-            apiVersion: apps/v1
-            kind: Deployment
+        ---
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+        name: mysql
+        labels:
+            app: db
+        spec:
+        replicas: 1
+        selector:
+            matchLabels:
+            app: db
+        template:
             metadata:
-            name: mysql
             labels:
                 app: db
             spec:
-            replicas: 1
-            selector:
-                matchLabels:
-                app: db
-            template:
-                metadata:
-                labels:
-                    app: db
-                spec:
-                containers:
-                - name: mysql
-                    image: mysql
-                    imagePullPolicy: Never
-                    env:
-                    - name: MYSQL_ROOT_PASSWORD
-                    valueFrom:
-                        secretKeyRef:
-                        name: flaskapi-secrets
-                        key: db_root_password
-                    ports:
-                    - containerPort: 3306
-                    name: db-container
-                    volumeMounts:
-                    - name: mysql-persistent-storage
-                        mountPath: /var/lib/mysql
-                volumes:
-                    - name: mysql-persistent-storage
-                    persistentVolumeClaim:
-                        claimName: mysql-pv-claim
+            containers:
+            - name: mysql
+                image: mysql:5.7.34
+                resources:
+                limits:
+                    memory: "2048Mi"
+                    cpu: "500m"
+                env:
+                - name: MYSQL_ROOT_PASSWORD
+                valueFrom:
+                    secretKeyRef:
+                    name: flaskapi-secrets
+                    key: db_root_password
+                ports:
+                - containerPort: 3306
+                name: db-container
+                volumeMounts:
+                - name: mysql-persistent-storage
+                mountPath: /var/lib/mysql
+            volumes:
+                - name: mysql-persistent-storage
+                persistentVolumeClaim:
+                    claimName: mysql-pv-claim
 
-
-            ---
-            apiVersion: v1
-            kind: Service
-            metadata:
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+        name: mysql
+        labels:
+            app: db
+        spec:
+        ports:
+        - port: 3306
+            protocol: TCP
             name: mysql
-            labels:
-                app: db
-            spec:
-            ports:
-            - port: 3306
-                protocol: TCP
-                name: mysql
-            selector:
-                app: db
-            type: LoadBalancer  
+        selector:
+            app: db
+        type: NodePort 
         
     Com o arquivo gerado, deve-se aplicá-lo através do comando 'kubectl apply -f mysql-deployment.yaml'
 
@@ -139,7 +143,8 @@ Baseado em:
     A última coisa  a fazer antes de implementar a API é incializar um banco de dados e um esquema no MySQL server. Por motivos de simplicidade, acessaremos o MySQL através do recém criado serviço. Como o pod executando oserviço está apenas disponível de dentro do cluster, nós iniciaremos um pod temporário que servirá como um mysql-client.
 
     3.1 Configurar o mysql-client via terminal: kubectl run -it --rm --image=mysql --restart=Never mysql-client -- mysql --host mysql --password=<senha no formato original>
-        $ kubectl run -it --rm --image=mysql --restart=Never mysql-client -- mysql --host mysql --password="Senha%#123"
+        $ kubectl run -it --rm --image=mysql --namespace=flaskmysql --restart=Never mysql-client -- mysql --host mysql --pa
+ssword="Senha%#123"
 
         Obs.: Pode ser necessário criar as regras de firewall para o pod receber acesso na porta 3306
     
@@ -160,3 +165,51 @@ Baseado em:
 
 4. Construindoo deploy do Flask no Kubernetes
 
+
+        ---
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+        name: flaskapi-deployment
+        labels:
+            app: flaskapi
+        spec:
+        replicas: 3
+        selector:
+            matchLabels:
+            app: flaskapi
+        template:
+            metadata:
+            labels:
+                app: flaskapi
+            spec:
+            containers:
+            - name: flaskapi
+                image: rfabricio/flask-api:latest
+                resources:
+                limits:
+                    memory: "64Mi"
+                    cpu: "250m"
+                ports:
+                - containerPort: 5000
+                env:
+                - name: db_flask_password
+                    valueFrom:
+                    secretKeyRef:
+                        name:  flaskapi-secrets
+                        key: db_flask_password
+                - name: db_name
+                    value: flaskdocker
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+        name: flask-service
+        spec:
+        selector:
+            app: flaskapi
+        ports:
+        - port: 5000
+            protocol: TCP
+            targetPort: 5000
+        type: LoadBalancer
